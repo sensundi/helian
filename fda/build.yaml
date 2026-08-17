@@ -1,0 +1,42 @@
+name: Compute Stock Beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "Ticker symbol"
+        required: true
+        default: "SQQQ"
+      benchmark:
+        description: "Benchmark symbol"
+        required: false
+        default: "SPY"
+  # Optional: run automatically on a schedule instead of / in addition to manual trigger
+  # schedule:
+  #   - cron: "0 21 * * 1-5"  # 9pm UTC, weekdays (after US market close)
+
+jobs:
+  compute-beta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install alpaca-py pandas numpy
+
+      - name: Compute beta
+        env:
+          # Secrets: Settings > Secrets and variables > Actions > Secrets tab
+          ALPACA_API_KEY: ${{ secrets.API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          # Variables (non-secret): Settings > Secrets and variables > Actions > Variables tab
+          # These fall back if no workflow_dispatch input is given (e.g. on a schedule trigger)
+          SYMBOL: ${{ inputs.symbol || vars.SYMBOL }}
+          BENCHMARK: ${{ inputs.benchmark || vars.BENCHMARK }}
+        run: python alpaca_beta.py "$SYMBOL" --benchmark "$BENCHMARK"
