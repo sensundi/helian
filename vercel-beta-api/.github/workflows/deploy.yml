@@ -1,0 +1,42 @@
+name: Deploy Beta API to Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vercel-beta-api
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel project settings
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Push Alpaca credentials into Vercel env vars
+        # Removes any stale value first (ignore error if it doesn't exist yet),
+        # then adds the current secret value fresh on every run.
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ALPACA_API_KEY: ${{ secrets.API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        run: |
+          vercel env rm ALPACA_API_KEY production --yes --token=$VERCEL_TOKEN || true
+          echo "$ALPACA_API_KEY" | vercel env add ALPACA_API_KEY production --token=$VERCEL_TOKEN
+
+          vercel env rm ALPACA_SECRET_KEY production --yes --token=$VERCEL_TOKEN || true
+          echo "$ALPACA_SECRET_KEY" | vercel env add ALPACA_SECRET_KEY production --token=$VERCEL_TOKEN
+
+      - name: Build project artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
